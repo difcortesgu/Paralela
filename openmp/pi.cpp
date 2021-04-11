@@ -53,7 +53,6 @@ int main()
         printf("Time elapsed: %ld.%06ld\n", (long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
         
         printf("\npi: %2.10f   \n\n", pi[0]);
-        sleep(1000)
     }
     
     
