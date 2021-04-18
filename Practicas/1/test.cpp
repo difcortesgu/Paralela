@@ -22,22 +22,22 @@ int main(int argc, char **argv)
     // };
 
     // int kernel[3][3] = {
-    //     {0, -1, 0},
-    //     {-1, 5, -1},
-    //     {0, -1, 0}
+    //     {0, 1, 0},
+    //     {1, 5, 1},
+    //     {0, 1, 0}
     // };
     
-    int kernel[3][3] = {
-        {1, 1, 1},
-        {1, 1, 1},
-        {1, 1, 1}
-    };
-
     // int kernel[3][3] = {
-    //     {0, 0, 0},
-    //     {0, 1, 0},
-    //     {0, 0, 0}
+    //     {1, 1, 1},
+    //     {1, 1, 1},
+    //     {1, 1, 1}
     // };
+
+    int kernel[3][3] = {
+        {0, 0, 0},
+        {0, 1, 0},
+        {0, 0, 0}
+    };
 
     Mat image, newImage;
 
@@ -70,10 +70,9 @@ int main(int argc, char **argv)
                         int B = (int)pixel[0];
                         int G = (int)pixel[1];
                         int R = (int)pixel[2];
-
-                        newPixel[0] += (kernel[ki + 1][kj + 1] * B);
-                        newPixel[1] += (kernel[ki + 1][kj + 1] * G);
-                        newPixel[2] += (kernel[ki + 1][kj + 1] * R);
+                        newPixel[0] += (kernel[-ki + 1][-kj + 1] * B);
+                        newPixel[1] += (kernel[-ki + 1][-kj + 1] * G);
+                        newPixel[2] += (kernel[-ki + 1][-kj + 1] * R);
                     }
 
 
@@ -81,73 +80,48 @@ int main(int argc, char **argv)
                 }
             }
 
-            newPixel[0] /= kernel_size;
-            newPixel[1] /= kernel_size;
-            newPixel[2] /= kernel_size;
+            // newPixel[0] /= kernel_size;
+            // newPixel[1] /= kernel_size;
+            // newPixel[2] /= kernel_size;
+            if (newPixel[0]<0)
+            {
+                newPixel[0]=0;
+            }
+            if (newPixel[1]<0)
+            {
+                newPixel[1]=0;
+            }
+            if (newPixel[2]<0)
+            {
+                newPixel[2]=0;
+            }
+            if (newPixel[0]>255)
+            {
+                newPixel[0]=255;
+            }
+            if (newPixel[1]>255)
+            {
+                newPixel[1]=255;
+            }
+            if (newPixel[2]>255)
+            {
+                newPixel[2]=255;
+            }
 
-            newImage.at<Vec3b>(i,j)[0] = newPixel[0] % 256;
-            newImage.at<Vec3b>(i,j)[1] = newPixel[1] % 256;
-            newImage.at<Vec3b>(i,j)[2] = newPixel[2] % 256;
-            
-            // Vec3b pixel = image.at<Vec3b>(i, j);
-            // cout << newPixel[0] << newPixel[1] << newPixel[0] << endl;
-            // cout << pixel[0] << pixel[1] << pixel[0] << endl;
+            newImage.at<Vec3b>(i,j)[0] = newPixel[0];
+            newImage.at<Vec3b>(i,j)[1] = newPixel[1];
+            newImage.at<Vec3b>(i,j)[2] = newPixel[2];
         }
     }
-
-
     Mat dst;
-    Mat kernel1 = (Mat_<float>(3, 3) << 1/9, 1/9, 1/9,
-                                        1/9, 1/9, 1/9,
-                                        1/9, 1/9, 1/9);
+    Mat kernel1 = (Mat_<float>(3, 3) << 0, 0, 0,
+                                        0, 1, 0,
+                                        0, 0, 0)/1;
 
     filter2D(image, dst, image.depth(), kernel1);
+    
 
     imshow("Display Filter2D", dst);
-    
-    for (size_t i = 0; i < 5; i++)
-    {
-        for (size_t j = 0; j <  5; j++)
-        {
-            uchar newPixel[] = {0,0,0};
-            Vec3b pixel = dst.at<Vec3b>(i, j);
-
-                    uchar B = pixel[0];
-                    uchar G = pixel[1];
-                    uchar R = pixel[2];
-            cout << "soy la imagen esperada" << " " << (int)pixel[0] <<" " << (int) pixel[1] << " " << (int)pixel[2] << endl;
-        }
-    }
-    cout<<""<<endl;
-    for (size_t i = 0; i < 5; i++)
-    {
-        for (size_t j = 0; j <  5; j++)
-        {
-            Vec3b pixel = image.at<Vec3b>(i, j);
-
-                    uchar B = pixel[0];
-                    uchar G = pixel[1];
-                    uchar R = pixel[2];
-            cout << "imagen original" << " " << (int)pixel[0] <<" " << (int) pixel[1] << " " << (int)pixel[2] << endl;
-        }
-    }
-    cout<<""<<endl;
-
-    for (size_t i = 0; i < 5; i++)
-    {
-        for (size_t j = 0; j <  5; j++)
-        {
-            Vec3b pixel = newImage.at<Vec3b>(i, j);
-
-                    uchar B = pixel[0];
-                    uchar G = pixel[1];
-                    uchar R = pixel[2];
-            cout << "imagen Modificada" << " " << (int)pixel[0] <<" " << (int) pixel[1] << " " << (int)pixel[2] << endl;
-        }
-    }
-    cout<<""<<endl;
-
-
     imshow("Original", image);                    // Show our image inside it.
     imshow("Modificado", newImage);                    // Show our image inside it.
 
