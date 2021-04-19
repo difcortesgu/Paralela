@@ -21,7 +21,6 @@ void *filter(void *arg)
     int threadId = *(int *)arg;
     int initIteration = (int)(image.rows / n_threads) * threadId;
     int endIteration = initIteration + (int)(image.rows / n_threads);
-    
     // Loop image rows
     for (int i = initIteration; i < endIteration; i++)
     {
