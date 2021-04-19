@@ -7,15 +7,15 @@
 #include <sys/time.h>
 #include <string>
 
-
 using namespace cv;
 using namespace std;
 
 Mat image, newImage;
 vector<vector<int>> kernel;
-int n_threads, inicio, final, offset, kernel_total;
+int n_threads, inicio, final, offset;
+double kernel_total = 0;
 
-void *filter(void *arg)
+void *filterImage(void *arg)
 {
     // Get iteration boundaries
     int threadId = *(int *)arg;
@@ -71,20 +71,102 @@ void *filter(void *arg)
     return NULL;
 }
 
-void get_kernel_info(){
+void get_kernel_info(int filter)
+{
     // Get kernel sum to use it later
-    kernel_total = 0;
-    for (int i = 0; i < kernel.size(); i++)
+    bool brillo = false;
+    switch (filter)
     {
-        for (int j = 0; j < kernel.size(); j++)
-        {
-            kernel_total += kernel[i][j];
-        }
-    }
+    case 1:
+        //DETECCION DE BORDES
+        kernel = {
+            {0, 1, 0},
+            {1, -4, 1},
+            {0, 1, 0}};
 
-    if (kernel_total == 0)
-        kernel_total = 1;
-    
+        break; //optional
+    case 2:
+        // REPUJADO
+        kernel = {
+            {-2, -1, 0},
+            {-1, 1, 1},
+            {0, 1, 2}};
+
+        break; //optional
+    case 3:
+        // DESENFOCADO 3x3
+        kernel = {
+            {1, 1, 1},
+            {1, 1, 1},
+            {1, 1, 1}};
+
+        break; //optional
+    case 4:
+        // ENFOCADO
+        kernel = {
+            {0, -1, 0},
+            {-1, 5, -1},
+            {0, -1, 0}};
+        break; //optional
+    case 5:
+        // brillo bajo
+        kernel = {
+            {0, 0, 0},
+            {0, 1, 0},
+            {0, 0, 0}};
+        brillo = true;
+        kernel_total = 1.5;
+        break;
+    case 6:
+        // brillo alto
+        kernel = {
+            {0, 0, 0},
+            {0, 1, 0},
+            {0, 0, 0}};
+        brillo = true;
+        kernel_total = 0.5;
+        break; //optional
+    case 7:
+        // DESENFOCADO 3x3
+        kernel = {
+            {1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
+
+        break;
+    default:   //Identidad
+        kernel = {
+            {0, 0, 0},
+            {0, 1, 0},
+            {0, 0, 0}};
+    }
+    if (!brillo)
+    {
+        for (int i = 0; i < kernel.size(); i++)
+        {
+            for (int j = 0; j < kernel.size(); j++)
+            {
+                kernel_total += kernel[i][j];
+            }
+        }
+
+        if (kernel_total == 0)
+            kernel_total = 1;
+    }
+    cout<<"kernel"<< kernel_total<<endl;
+
     // Get iteration indexed based on the kernel
     inicio = -(int)(kernel.size() / 2);
     final = (int)(kernel.size() / 2) + 1;
@@ -94,7 +176,8 @@ void get_kernel_info(){
 int main(int argc, char **argv)
 {
     // Check number of arguments
-    if (argc < 4){
+    if (argc < 4)
+    {
         cout << "Ingrese todos los argumentos necesarios para ejecutar el proceso" << endl;
         return -1;
     }
@@ -104,31 +187,28 @@ int main(int argc, char **argv)
     string path_save = argv[2];
 
     n_threads = atoi(argv[3]);
-    if (n_threads == 0){
+    if (n_threads == 0)
+    {
         cout << "El argumento de número de hilos es invalido" << endl;
         return -1;
     }
-    if(argc > 4){
-        int filter = atoi(argv[4]);
-        if (filter == 0){
+    int filter = 0;
+    if (argc > 4)
+    {
+        filter = atoi(argv[4]);
+        if (filter == 0)
+        {
             cout << "El argumento de filtro es invalido" << endl;
             return -1;
         }
     }
-    
 
-    // REPUJADO
-    kernel = {
-        {-2, -1, 0},
-        {-1, 1, 1},
-        {0, 1, 2}
-    };
-
-    get_kernel_info();
+    get_kernel_info(filter);
 
     // Read the image
-    image = imread(path_image, IMREAD_COLOR);// Read the file
-    if (!image.data){
+    image = imread(path_image, IMREAD_COLOR); // Read the file
+    if (!image.data)
+    {
         cout << "Could not open or find the image" << endl;
         return -1;
     }
@@ -136,34 +216,37 @@ int main(int argc, char **argv)
     int threadId[n_threads], *retval;
     pthread_t threads[n_threads];
     newImage = Mat(image.rows, image.cols, CV_8UC3, Scalar(0, 0, 0));
-    
+
     // Get initial time
     struct timeval tval_before, tval_after, tval_result;
     gettimeofday(&tval_before, NULL);
 
     // Launch threads
-    for (int i = 0; i < n_threads; i++){
+    for (int i = 0; i < n_threads; i++)
+    {
         threadId[i] = i;
-        pthread_create(&threads[i], NULL, filter, &threadId[i]);
+        pthread_create(&threads[i], NULL, filterImage, &threadId[i]);
     }
 
     // wait for the threads to finish
-    for (int i = 0; i < n_threads; i++){
+    for (int i = 0; i < n_threads; i++)
+    {
         pthread_join(threads[i], (void **)&retval);
     }
 
     // Calculate time
     gettimeofday(&tval_after, NULL);
     timersub(&tval_after, &tval_before, &tval_result);
-    
+
     // Show results
-    printf("Time elapsed: %ld.%06ld\n", (long int)tval_result.tv_sec, (long int)tval_result.tv_usec);    
+    printf("Time elapsed: %ld.%06ld\n", (long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
     // imshow("Original", image);
     // imshow("Modificado", newImage);
 
     // Write the new image
     // imwrite(path_save, newImage);
-    if (!imwrite(path_save, newImage)){
+    if (!imwrite(path_save, newImage))
+    {
         cout << "Could not save the image" << endl;
         return -1;
     }
