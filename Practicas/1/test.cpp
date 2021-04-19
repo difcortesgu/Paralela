@@ -5,6 +5,8 @@
 #include <vector>
 #include <pthread.h>
 #include <sys/time.h>
+#include <string>
+
 
 using namespace cv;
 using namespace std;
@@ -19,7 +21,7 @@ void *filter(void *arg)
     int threadId = *(int *)arg;
     int initIteration = (int)(image.rows / n_threads) * threadId;
     int endIteration = initIteration + (int)(image.rows / n_threads);
-
+    
     // Loop image rows
     for (int i = initIteration; i < endIteration; i++)
     {
@@ -92,6 +94,30 @@ void get_kernel_info(){
 
 int main(int argc, char **argv)
 {
+    // Check number of arguments
+    if (argc < 4){
+        cout << "Ingrese todos los argumentos necesarios para ejecutar el proceso" << endl;
+        return -1;
+    }
+
+    // Get the arguments
+    string path_image = argv[1];
+    string path_save = argv[2];
+
+    n_threads = atoi(argv[3]);
+    if (n_threads == 0){
+        cout << "El argumento de número de hilos es invalido" << endl;
+        return -1;
+    }
+    if(argc > 4){
+        int filter = atoi(argv[4]);
+        if (filter == 0){
+            cout << "El argumento de filtro es invalido" << endl;
+            return -1;
+        }
+    }
+    
+
     // REPUJADO
     kernel = {
         {-2, -1, 0},
@@ -102,13 +128,12 @@ int main(int argc, char **argv)
     get_kernel_info();
 
     // Read the image
-    image = imread("lenna.png", IMREAD_COLOR);// Read the file
+    image = imread(path_image, IMREAD_COLOR);// Read the file
     if (!image.data){
         cout << "Could not open or find the image" << endl;
         return -1;
     }
 
-    n_threads = 16;
     int threadId[n_threads], *retval;
     pthread_t threads[n_threads];
     newImage = Mat(image.rows, image.cols, CV_8UC3, Scalar(0, 0, 0));
@@ -134,8 +159,15 @@ int main(int argc, char **argv)
     
     // Show results
     printf("Time elapsed: %ld.%06ld\n", (long int)tval_result.tv_sec, (long int)tval_result.tv_usec);    
-    imshow("Original", image);
-    imshow("Modificado", newImage);
+    // imshow("Original", image);
+    // imshow("Modificado", newImage);
+
+    // Write the new image
+    // imwrite(path_save, newImage);
+    if (!imwrite(path_save, newImage)){
+        cout << "Could not save the image" << endl;
+        return -1;
+    }
 
     waitKey(0);
     return 0;
