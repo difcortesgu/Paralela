@@ -3,6 +3,7 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <vector>
+#include <string>
 
 
 using namespace cv;
@@ -11,12 +12,34 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-    // if (argc != 2)
-    // {
-    //     cout << " Usage: display_image ImageToLoadAndDisplay" << endl;
-    //     return -1;
-    // }
+    if (argc < 4)
+    {
+        cout << "Ingrese todos los argumentos necesarios para ejecutar el proceso" << endl;
+        return -1;
+    }
+
+    // cout << "Se ingresaron " << argc - 1
+    //      << " argumentos:" << "\n";
+  
+    // for (int i = 1; i < argc; ++i)
+    //     cout << argv[i] << "\n";
+
+    string path_image = argv[1];
+    string path_save = argv[2];
+    int n_threads = atoi(argv[3]);
+    if(argc > 4){
+        int filter = atoi(argv[4]);
+        if (filter == 0){
+            cout << "El argumento de filtro es invalido" << endl;
+            return -1;
+        }
+    }
     
+    if (n_threads == 0){
+        cout << "El argumento de número de hilos es invalido" << endl;
+        return -1;
+    }
+
     // DETECCION DE BORDES
     // vector<vector<int>> kernel = {
     //     {0, 1, 0},
