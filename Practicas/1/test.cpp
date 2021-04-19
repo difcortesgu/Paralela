@@ -3,120 +3,49 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <vector>
-
+#include <pthread.h>
+#include <sys/time.h>
 
 using namespace cv;
 using namespace std;
 
+Mat image, newImage;
+vector<vector<int>> kernel;
+int n_threads, inicio, final, offset, kernel_total;
 
-int main(int argc, char **argv)
+void *filter(void *arg)
 {
-    // if (argc != 2)
-    // {
-    //     cout << " Usage: display_image ImageToLoadAndDisplay" << endl;
-    //     return -1;
-    // }
-    
-    // DETECCION DE BORDES
-    // vector<vector<int>> kernel = {
-    //     {0, 1, 0},
-    //     {1, -4, 1},
-    //     {0, 1, 0}
-    // };
+    // Get iteration boundaries
+    int threadId = *(int *)arg;
+    int initIteration = (int)(image.rows / n_threads) * threadId;
+    int endIteration = initIteration + (int)(image.rows / n_threads);
 
-    // REPUJADO
-    // vector<vector<int>> kernel = {
-    //     {-2, -1, 0},
-    //     {-1, 1, 1},
-    //     {0, 1, 2}
-    // };
-
-    // ENFOCADO
-    // vector<vector<int>> kernel = {
-    //     {0, -1, 0},
-    //     {-1, 5, -1},
-    //     {0, -1, 0}
-    // };
-
-    // ENFOCADO
-    // vector<vector<int>> kernel = {
-    //     {0, 0, 0, 0, 0},
-    //     {0, 0, -1, 0, 0},
-    //     {0, -1, 5, -1, 0},
-    //     {0, 0, -1, 0, 0},
-    //     {0, 0, 0, 0, 0}
-    // };
-
-
-    // DESENFOCADO 3x3
-    // vector<vector<int>> kernel = {
-    //     {1, 1, 1},
-    //     {1, 1, 1},
-    //     {1, 1, 1}
-    // };
-
-    // DESENFOCADO 5x5
-    vector<vector<int>> kernel = {
-        {0, 0, 0, 0, 0},
-        {0, 1, 1, 1, 0},
-        {0, 1, 1, 1, 0},
-        {0, 1, 1, 1, 0},
-        {0, 0, 0, 0, 0}
-    };
-
-
-    // IDENTIDAD
-    // vector<vector<int>> kernel = {
-    //     {0, 0, 0},
-    //     {0, 1, 0},
-    //     {0, 0, 0}
-    // };
-
-    Mat image, newImage;
-
-    image = imread("lenna.png", IMREAD_COLOR); // Read the file
-    if (!image.data) // Check for invalid input
+    // Loop image rows
+    for (int i = initIteration; i < endIteration; i++)
     {
-        cout << "Could not open or find the image" << endl;
-        return -1;
-    }
-
-    
-    newImage = Mat(image.rows, image.cols, CV_8UC3, Scalar(0,0,0));
-    
-    int kernel_total = 0;
-    for (int i = 0; i < kernel.size(); i++)
-    {
-        for (int j = 0; j < kernel.size(); j++)
-        {
-            kernel_total += kernel[i][j];
-        }
-    }   
-    int inicio = -(int)(kernel.size() / 2);
-    int final = (int)(kernel.size() / 2) + 1;
-    int offset = (int)(kernel.size() / 2);
-
-    cout<< inicio << ", " << final << endl;
-    for (int i = 0; i < image.rows; i++)
-    {
+        // Loop image cols
         for (int j = 0; j < image.cols; j++)
         {
-            int newPixel[] = {0,0,0};
-            
+            int newPixel[] = {0, 0, 0};
 
-            // pixeles vecinos
+            // Loop kernel rows
             for (int ki = inicio; ki < final; ki++)
             {
+                // Loop kernel cols
                 for (int kj = inicio; kj < final; kj++)
                 {
-                    if( i + ki >= 0 && i + ki < image.rows && j + kj >= 0 && j + kj < image.cols ){
-                        
-                        Vec3b pixel = image.at<Vec3b>(i + ki, j + kj);
 
+                    // Check if inside the image
+                    if (i + ki >= 0 && i + ki < image.rows && j + kj >= 0 && j + kj < image.cols)
+                    {
+
+                        // Get image pixel RGB
+                        Vec3b pixel = image.at<Vec3b>(i + ki, j + kj);
                         int B = (int)pixel[0];
                         int G = (int)pixel[1];
                         int R = (int)pixel[2];
 
+                        // Update new pixel sum
                         newPixel[0] += (kernel[-ki + offset][-kj + offset] * B);
                         newPixel[1] += (kernel[-ki + offset][-kj + offset] * G);
                         newPixel[2] += (kernel[-ki + offset][-kj + offset] * R);
@@ -124,29 +53,90 @@ int main(int argc, char **argv)
                 }
             }
 
-            for (int k = 0; k < 3; k++){
+            //  Normalize pixel and bound it
+            for (int k = 0; k < 3; k++)
+            {
                 newPixel[k] /= kernel_total;
-                newPixel[k]= max(newPixel[k], 0);
-                newPixel[k]= min(newPixel[k], 255);
+                newPixel[k] = max(newPixel[k], 0);
+                newPixel[k] = min(newPixel[k], 255);
             }
 
-            newImage.at<Vec3b>(i,j)[0] = newPixel[0];
-            newImage.at<Vec3b>(i,j)[1] = newPixel[1];
-            newImage.at<Vec3b>(i,j)[2] = newPixel[2];
+            // Update new image pixel
+            newImage.at<Vec3b>(i, j)[0] = newPixel[0];
+            newImage.at<Vec3b>(i, j)[1] = newPixel[1];
+            newImage.at<Vec3b>(i, j)[2] = newPixel[2];
         }
     }
-    Mat dst;
-    Mat kernel1 = (Mat_<float>(3, 3) << 0, 0, 0,
-                                        0, 1, 0,
-                                        0, 0, 0)/1;
+    return NULL;
+}
 
-    filter2D(image, dst, image.depth(), kernel1);
+void get_kernel_info(){
+    // Get kernel sum to use it later
+    kernel_total = 0;
+    for (int i = 0; i < kernel.size(); i++)
+    {
+        for (int j = 0; j < kernel.size(); j++)
+        {
+            kernel_total += kernel[i][j];
+        }
+    }
+
+    if (kernel_total == 0)
+        kernel_total = 1;
     
+    // Get iteration indexed based on the kernel
+    inicio = -(int)(kernel.size() / 2);
+    final = (int)(kernel.size() / 2) + 1;
+    offset = (int)(kernel.size() / 2);
+}
 
-    imshow("Display Filter2D", dst);
-    imshow("Original", image); // Show our image inside it.
-    imshow("Modificado", newImage);// Show our image inside it.
+int main(int argc, char **argv)
+{
+    // REPUJADO
+    kernel = {
+        {-2, -1, 0},
+        {-1, 1, 1},
+        {0, 1, 2}
+    };
 
-    waitKey(0); // Wait for a keystroke in the window
+    get_kernel_info();
+
+    // Read the image
+    image = imread("lenna.png", IMREAD_COLOR);// Read the file
+    if (!image.data){
+        cout << "Could not open or find the image" << endl;
+        return -1;
+    }
+
+    n_threads = 16;
+    int threadId[n_threads], *retval;
+    pthread_t threads[n_threads];
+    newImage = Mat(image.rows, image.cols, CV_8UC3, Scalar(0, 0, 0));
+    
+    // Get initial time
+    struct timeval tval_before, tval_after, tval_result;
+    gettimeofday(&tval_before, NULL);
+
+    // Launch threads
+    for (int i = 0; i < n_threads; i++){
+        threadId[i] = i;
+        pthread_create(&threads[i], NULL, filter, &threadId[i]);
+    }
+
+    // wait for the threads to finish
+    for (int i = 0; i < n_threads; i++){
+        pthread_join(threads[i], (void **)&retval);
+    }
+
+    // Calculate time
+    gettimeofday(&tval_after, NULL);
+    timersub(&tval_after, &tval_before, &tval_result);
+    
+    // Show results
+    printf("Time elapsed: %ld.%06ld\n", (long int)tval_result.tv_sec, (long int)tval_result.tv_usec);    
+    imshow("Original", image);
+    imshow("Modificado", newImage);
+
+    waitKey(0);
     return 0;
 }
