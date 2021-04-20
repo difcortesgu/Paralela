@@ -165,7 +165,6 @@ void get_kernel_info(int filter)
         if (kernel_total == 0)
             kernel_total = 1;
     }
-    cout<<"kernel"<< kernel_total<<endl;
 
     // Get iteration indexed based on the kernel
     inicio = -(int)(kernel.size() / 2);
@@ -240,11 +239,15 @@ int main(int argc, char **argv)
 
     // Show results
     printf("Time elapsed: %ld.%06ld\n", (long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
+
     // imshow("Original", image);
     // imshow("Modificado", newImage);
 
     // Write the new image
     // imwrite(path_save, newImage);
+    cout<<"cantidad de hilos "<< n_threads<<endl;
+    cout<<"numero de filtro "<< filter<< endl;
+    cout<<"imagen "<< path_image <<endl<<endl;
     if (!imwrite(path_save, newImage))
     {
         cout << "Could not save the image" << endl;
