@@ -9,7 +9,13 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
-            "args": [],
+            "args": [
+                "lenna.png",
+                "lenna_output.png",
+                "1",
+                "4",
+                "5"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -22,7 +28,7 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: g++ build active file ver(1)",
+            "preLaunchTask": "C/C++: g++ build active file",
             "miDebuggerPath": "/usr/bin/gdb"
         }
     ]
