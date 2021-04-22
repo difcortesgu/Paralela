@@ -1,0 +1,25 @@
+EL archivo image-effect.cpp se compila con la siguiente instruccion:
+
+    g++ image-effect.cpp -g -lpthread -o image-effect `pkg-config --cflags --libs opencv`
+
+Dependiendo de la version instalada de opencv que se tenga se debe que cambiar la anterior instruccion, por ejemplo si se tiene instalada la version 4 de opencv se compilaria de la siguiente forma:
+
+    g++ image-effect.cpp -g -lpthread -o image-effect `pkg-config --cflags --libs opencv4`
+
+Despues de la compilacion, se genera un ejecutable llamado image-effect que recibe 4 parametros:
+    1. Nombre imagen a procesar
+    2. Nombre de la imagen de salida
+    3. Numero de hilos a utilizar
+    4. Numero del filtro (opcional)
+        1 = DETECCION DE BORDES
+        2 = REPUJADO
+        3 = DESENFOCADO 3x3
+        4 = ENFOCADO
+        5 = BRILLO BAJO
+        6 = BRILLO ALTO
+        7 = DESENFOCADO 3x3
+        default = IDENTIDAD
+
+Para correr todas las imagenes ejecute el archivo Script.sh 
+NOTA: la instruccion de compilacion puede cambiar respecto a la version de opencv como se indica mas arriba
+
