@@ -1,0 +1,13 @@
+# Target labels
+ Main
+ opencv_imgcodecs
+ PerfTest
+# Source files and their labels
+/home/naburoky/Paralela/git_remoto/Paralela/Practicas/OpenCV/modules/imgcodecs/perf/perf_main.cpp
+ Main
+ opencv_imgcodecs
+ PerfTest
+/home/naburoky/Paralela/git_remoto/Paralela/Practicas/OpenCV/modules/imgcodecs/perf/perf_precomp.hpp
+ Main
+ opencv_imgcodecs
+ PerfTest

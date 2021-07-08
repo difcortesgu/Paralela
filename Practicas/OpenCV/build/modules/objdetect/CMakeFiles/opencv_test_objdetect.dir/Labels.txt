@@ -1,0 +1,25 @@
+# Target labels
+ Main
+ opencv_objdetect
+ AccuracyTest
+# Source files and their labels
+/home/naburoky/Paralela/git_remoto/Paralela/Practicas/OpenCV/modules/objdetect/test/opencl/test_hogdetector.cpp
+ Main
+ opencv_objdetect
+ AccuracyTest
+/home/naburoky/Paralela/git_remoto/Paralela/Practicas/OpenCV/modules/objdetect/test/test_cascadeandhog.cpp
+ Main
+ opencv_objdetect
+ AccuracyTest
+/home/naburoky/Paralela/git_remoto/Paralela/Practicas/OpenCV/modules/objdetect/test/test_main.cpp
+ Main
+ opencv_objdetect
+ AccuracyTest
+/home/naburoky/Paralela/git_remoto/Paralela/Practicas/OpenCV/modules/objdetect/test/test_qrcode.cpp
+ Main
+ opencv_objdetect
+ AccuracyTest
+/home/naburoky/Paralela/git_remoto/Paralela/Practicas/OpenCV/modules/objdetect/test/test_precomp.hpp
+ Main
+ opencv_objdetect
+ AccuracyTest

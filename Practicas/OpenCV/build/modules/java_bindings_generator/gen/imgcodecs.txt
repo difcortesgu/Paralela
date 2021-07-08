@@ -1,0 +1,16 @@
+PORTED FUNCs LIST (8 of 8):
+
+ Mat cv::imread(String filename, int flags = IMREAD_COLOR)
+ bool cv::imreadmulti(String filename, vector_Mat& mats, int flags = IMREAD_ANYCOLOR)
+ bool cv::imwrite(String filename, Mat img, vector_int params = std::vector<int>())
+ bool cv::imwritemulti(String filename, vector_Mat img, vector_int params = std::vector<int>())
+ Mat cv::imdecode(Mat buf, int flags)
+ bool cv::imencode(String ext, Mat img, vector_uchar& buf, vector_int params = std::vector<int>())
+ bool cv::haveImageReader(String filename)
+ bool cv::haveImageWriter(String filename)
+
+SKIPPED FUNCs LIST (0 of 8):
+
+
+0 def args - 3 funcs
+1 def args - 5 funcs
