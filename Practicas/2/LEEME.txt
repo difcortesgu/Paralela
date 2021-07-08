@@ -1,10 +1,10 @@
 EL archivo image-effect.cpp se compila con la siguiente instruccion:
 
-    g++ image-effect.cpp -g -lpthread -o image-effect `pkg-config --cflags --libs opencv`
+    g++ image-effect.cpp -fopenmp -o image-effect `pkg-config --cflags --libs opencv`
 
 Dependiendo de la version instalada de opencv que se tenga se debe que cambiar la anterior instruccion, por ejemplo si se tiene instalada la version 4 de opencv se compilaria de la siguiente forma:
 
-    g++ image-effect.cpp -g -lpthread -o image-effect `pkg-config --cflags --libs opencv4`
+    g++ image-effect.cpp -fopenmp -o image-effect `pkg-config --cflags --libs opencv4`
 
 Despues de la compilacion, se genera un ejecutable llamado image-effect que recibe 4 parametros:
     1. Nombre imagen a procesar
