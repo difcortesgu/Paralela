@@ -8,10 +8,12 @@
 #include <stdio.h>
 
 cudaError_t filterImage(cv::Mat image, cv::Mat result_image);
-void get_kernel_info(int filter);
 
-int kernel[9];
-int kernel_total, kernel_size, n_blocks, n_threads;
+int kernel[9] = {
+            0, 1, 0,
+            1, -4, 1,
+            0, 1, 0 };
+int kernel_total = 1, kernel_size = 3, n_blocks = 24, n_threads = 128;
 
 
 __global__ void filterImagekernel(const uchar* image, const int* kernel, float kernel_total, int kernel_size, int image_width, int image_height, int image_channels, int blocks, int threads, int rows_per_block, int cols_per_thread, uchar* result_image)
@@ -123,14 +125,14 @@ __global__ void filterImagekernel(const uchar* image, const int* kernel, float k
 
 int main(int argc, char** argv)
 {
-    // Check number of arguments
+    //Check number of arguments
     if (argc < 5)
     {
         std::cout << "Ingrese todos los argumentos necesarios para ejecutar el proceso" << std::endl;
         return -1;
     }
 
-    // Get the arguments
+    //Get the arguments
     std::string path_image = argv[1];
     std::string path_save = argv[2];
 
@@ -146,16 +148,6 @@ int main(int argc, char** argv)
     {
         std::cout << "El número de hilos es invalido" << std::endl;
         return -1;
-    }
-    int filter = 0;
-    if (argc > 5)
-    {
-        filter = atoi(argv[5]);
-        if (filter == 0)
-        {
-            std::cout << "El numero del filtro es invalido" << std::endl;
-            return -1;
-        }
     }
 
     cv::Mat image = cv::imread(path_image, cv::IMREAD_COLOR); // Read the file
@@ -274,82 +266,4 @@ cudaError_t filterImage(cv::Mat image, cv::Mat result_image)
         std::cout << message << std::endl;
     }
     return cudaStatus;
-}
-
-
-void get_kernel_info(int filter)
-{
-    // Get kernel sum to use it later
-    std::vector<int> temp_kernel;
- 
-    bool brillo = false;
-    switch (filter)
-    {
-    case 1:
-        //DETECCION DE BORDES
-        temp_kernel = {
-            0, 1, 0,
-            1, -4, 1,
-            0, 1, 0 };
-        break; //optional
-    case 2:
-        // REPUJADO
-        temp_kernel = {
-            -2, -1, 0,
-            -1, 1, 1,
-            0, 1, 2 };
-
-        break; //optional
-    case 3:
-        // DESENFOCADO 3x3
-        temp_kernel = {
-            1, 1, 1,
-            1, 1, 1,
-            1, 1, 1 };
-
-        break; //optional
-    case 4:
-        // ENFOCADO
-        temp_kernel = {
-            0, -1, 0,
-            -1, 5, -1,
-            0, -1, 0 };
-        kernel_size = 3;
-        break; //optional
-    case 5:
-        // brillo bajo
-        temp_kernel = {
-            0, 0, 0,
-            0, 1, 0,
-            0, 0, 0 };
-        brillo = true;
-        kernel_total = 1.5;
-        break;
-    case 6:
-        // brillo alto
-        temp_kernel = {
-            0, 0, 0,
-            0, 1, 0,
-            0, 0, 0 };
-        brillo = true;
-        kernel_total = 0.5;
-        break;
-    default:   //Identidad
-        temp_kernel = {
-            0, 0, 0,
-            0, 1, 0,
-            0, 0, 0 };
-    }
-    if (!brillo)
-    {
-        for (int i = 0; i < 9; i++)
-        {
-            kernel_total += temp_kernel[i];
-            kernel[i] = temp_kernel[i];
-        }
-
-        if (kernel_total == 0)
-            kernel_total = 1;
-    }
-
 }
