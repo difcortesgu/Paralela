@@ -6,6 +6,7 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <stdio.h>
+#include <sys/time.h>
 
 cudaError_t filterImage(cv::Mat image, cv::Mat result_image);
 
@@ -227,8 +228,14 @@ cudaError_t filterImage(cv::Mat image, cv::Mat result_image)
         int cols_per_thread = std::ceil((float)image_width / (float)n_threads);
         int shared_buffer_size = (rows_per_block + (kernel_size - 1)) * image_width * image_channels * sizeof(uchar);
 
+        // Get initial time
+        struct timeval tval_before, tval_after, tval_result;
+        gettimeofday(&tval_before, NULL);
+
+
         // Launch a kernel on the GPU with one thread for each element.
         filterImagekernel << <n_blocks, n_threads, shared_buffer_size >> > (d_image, d_kernel, kernel_total, kernel_size, image_width, image_height, image_channels, n_blocks, n_threads, rows_per_block, cols_per_thread, d_result_image);
+
 
         // Check for any errors launching the kernel
         cudaStatus = cudaGetLastError();
@@ -244,6 +251,16 @@ cudaError_t filterImage(cv::Mat image, cv::Mat result_image)
             std::cout << cudaGetErrorString(cudaStatus) << 1 << std::endl;
             return cudaStatus;
         }
+
+        // Calculate time
+        gettimeofday(&tval_after, NULL);
+        timersub(&tval_after, &tval_before, &tval_result);
+
+        // Show results
+        printf("Time elapsed: %ld.%06ld\n", (long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
+        std::cout<<"bloques: "<< n_blocks << std::endl;
+        std::cout<<"hilos por bloque: "<< n_threads << std::endl;
+
 
         //if (cudaStatus != cudaSuccess) throw "cudaDeviceSynchronize returned error after launching kernel!";
 
