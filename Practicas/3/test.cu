@@ -18,18 +18,14 @@ int kernel_total = 1, kernel_size = 3, n_blocks = 24, n_threads = 128;
 
 __global__ void filterImagekernel(const uchar* image, const int* kernel, float kernel_total, int kernel_size, int image_width, int image_height, int image_channels, int blocks, int threads, int rows_per_block, int cols_per_thread, uchar* result_image)
 {
-    //extern __shared__ uchar buffer[];
-
     int initial_row, final_row, initial_col, final_col;
 
 
-    initial_row = blockIdx.x * rows_per_block - (kernel_size / 2);
+    initial_row = (blockIdx.x * rows_per_block) - (kernel_size / 2);
     final_row = ((blockIdx.x + 1) * rows_per_block) + (kernel_size / 2);
-    rows_per_block = rows_per_block + (kernel_size - 1);
 
-    initial_col = threadIdx.x * cols_per_thread - (kernel_size / 2);
+    initial_col = (threadIdx.x * cols_per_thread) - (kernel_size / 2);
     final_col = ((threadIdx.x + 1) * cols_per_thread) + (kernel_size / 2);
-    cols_per_thread = cols_per_thread + (kernel_size - 1);
 
     if (initial_row < 0)
     {
@@ -40,40 +36,19 @@ __global__ void filterImagekernel(const uchar* image, const int* kernel, float k
         initial_col = 0;
     }
 
-
-    if (final_row > image_height)
+    if (final_row > image_height - kernel_size)
     {
-        rows_per_block = image_height - initial_row;
-        final_row = image_height;
+        final_row = image_height - kernel_size;
     }
-    if (final_col > image_width)
+    if (final_col > image_width - kernel_size)
     {
-        cols_per_thread = image_width - initial_col;
-        final_col = image_width;
+        final_col = image_width - kernel_size;
     }
-
-    //printf("block: %d, thread: %d, rows: (%d, %d), cols:(%d, %d), rows_per_block: %d, cols_per_thread: %d\n", blockIdx.x, threadIdx.x, initial_row, final_row, initial_col, final_col, rows_per_block, cols_per_thread);
-    //for (int row = 0; row < rows_per_block; row++)
-    //{
-    //    for (int col = initial_col; col < final_col; col++)
-    //    {
-    //        for (int channel = 0; channel < image_channels; channel++)
-    //        {
-    //            buffer[(row * image_width * image_channels) + (col * image_channels) + channel] = image[((initial_row + row) * image_width * image_channels) + (col * image_channels) + channel];
-    //        }
-    //    }
-    //}
-
-    __syncthreads();
 
     int newPixelR, newPixelG, newPixelB;
+    __syncthreads();
 
-    rows_per_block = rows_per_block - (kernel_size - 1);
-    final_row = final_row - (kernel_size - 1);
-
-    cols_per_thread = cols_per_thread - (kernel_size - 1);
-    final_col = final_col - (kernel_size - 1);
-
+    int contador = 0;
     for (int row = initial_row; row < final_row; row++)
     {
         for (int col = initial_col; col < final_col; col++)
@@ -82,6 +57,7 @@ __global__ void filterImagekernel(const uchar* image, const int* kernel, float k
             newPixelG = 0;
             newPixelB = 0;
 
+                    contador++;
             // Loop kernel rows
             for (int krow = 0; krow < kernel_size; krow++)
             {
@@ -94,9 +70,9 @@ __global__ void filterImagekernel(const uchar* image, const int* kernel, float k
                     //printf("pos: %d\n", pos);
 
                     //// Update new pixel sum
-                    newPixelB += (kernel[kpos] * (int)image[pos]);
-                    newPixelG += (kernel[kpos + 1] * (int)image[pos + 1]);
-                    newPixelR += (kernel[kpos + 2] * (int)image[pos + 2]);
+                    newPixelB += (kernel[kpos] * (int)image[pos + 1 ]);
+                    newPixelG += (kernel[kpos] * (int)image[pos]);
+                    newPixelR += (kernel[kpos] * (int)image[pos + 2]);
                 }
             }
 
@@ -120,7 +96,6 @@ __global__ void filterImagekernel(const uchar* image, const int* kernel, float k
 
         }
     }
-
 }
 
 int main(int argc, char** argv)
@@ -189,8 +164,8 @@ cudaError_t filterImage(cv::Mat image, cv::Mat result_image)
     uchar* d_image;
     uchar* d_result_image;
     int* d_kernel;
-    int image_width = image.rows;
-    int image_height = image.cols;
+    int image_width = image.cols;
+    int image_height = image.rows;
     int image_channels = image.channels();
 
     cudaError_t cudaStatus = cudaSuccess;
@@ -219,13 +194,12 @@ cudaError_t filterImage(cv::Mat image, cv::Mat result_image)
         cudaStatus = cudaMemcpy(d_kernel, kernel, kernel_size * kernel_size * sizeof(int), cudaMemcpyHostToDevice);
         if (cudaStatus != cudaSuccess) throw "cudaMemcpy failed! kernel to device";
 
-        cudaStatus = cudaMemcpy(d_image, image.data, image.rows * image.cols * image.channels() * sizeof(uchar), cudaMemcpyHostToDevice);
-        if (cudaStatus != cudaSuccess) throw "cudaMemcpy failed! result image to device";
+        //cudaStatus = cudaMemcpy(d_image, result_image.data, image.rows * image.cols * image.channels() * sizeof(uchar), cudaMemcpyHostToDevice);
+        //if (cudaStatus != cudaSuccess) throw "cudaMemcpy failed! result image to device";
 
 
         int rows_per_block = std::ceil((float)image_height / (float)n_blocks);
         int cols_per_thread = std::ceil((float)image_width / (float)n_threads);
-        int shared_buffer_size = (rows_per_block + (kernel_size - 1)) * image_width * image_channels * sizeof(uchar);
 
         // Launch a kernel on the GPU with one thread for each element.
         filterImagekernel << <n_blocks, n_threads >> > (d_image, d_kernel, kernel_total, kernel_size, image_width, image_height, image_channels, n_blocks, n_threads, rows_per_block, cols_per_thread, d_result_image);
