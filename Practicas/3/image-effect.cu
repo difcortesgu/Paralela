@@ -10,7 +10,7 @@
 cudaError_t filterImage(cv::Mat image, cv::Mat result_image);
 void get_kernel_info(int filter);
 
-int *kernel;
+int kernel[9];
 int kernel_total, kernel_size, n_blocks, n_threads;
 
 
@@ -20,7 +20,7 @@ __global__ void filterImagekernel(const uchar* image, const int* kernel, float k
 
     int initial_row, final_row, initial_col, final_col;
 
-    
+
     initial_row = blockIdx.x * rows_per_block - (kernel_size / 2);
     final_row = ((blockIdx.x + 1) * rows_per_block) + (kernel_size / 2);
     rows_per_block = rows_per_block + (kernel_size - 1);
@@ -39,19 +39,19 @@ __global__ void filterImagekernel(const uchar* image, const int* kernel, float k
     }
 
 
-    if (final_row > image_height) 
+    if (final_row > image_height)
     {
         rows_per_block = image_height - initial_row;
         final_row = image_height;
     }
-    if (final_col > image_width) 
+    if (final_col > image_width)
     {
         cols_per_thread = image_width - initial_col;
         final_col = image_width;
     }
 
     //printf("block: %d, thread: %d, rows: (%d, %d), cols:(%d, %d), rows_per_block: %d, cols_per_thread: %d\n", blockIdx.x, threadIdx.x, initial_row, final_row, initial_col, final_col, rows_per_block, cols_per_thread);
-    for (int row = 0 ; row < rows_per_block; row++)
+    for (int row = 0; row < rows_per_block; row++)
     {
         for (int col = initial_col; col < final_col; col++)
         {
@@ -88,7 +88,7 @@ __global__ void filterImagekernel(const uchar* image, const int* kernel, float k
                 {
                     int pos = ((row + krow) * image_width * image_channels) + ((col + kcol) * image_channels);
                     int kpos = (krow * kernel_size) + kcol;
-                      
+
                     //printf("pos: %d\n", pos);
 
                     //// Update new pixel sum
@@ -121,7 +121,7 @@ __global__ void filterImagekernel(const uchar* image, const int* kernel, float k
 
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     // Check number of arguments
     if (argc < 5)
@@ -131,8 +131,8 @@ int main(int argc, char **argv)
     }
 
     // Get the arguments
-    string path_image = argv[1];
-    string path_save = argv[2];
+    std::string path_image = argv[1];
+    std::string path_save = argv[2];
 
     n_blocks = atoi(argv[3]);
     if (n_blocks == 0)
@@ -168,7 +168,7 @@ int main(int argc, char **argv)
     cv::Mat result_image = cv::Mat(image.rows, image.cols, CV_8UC3, cv::Scalar(0, 0, 0));
 
     // Add vectors in parallel.
-    cudaError_t cudaStatus = filterImage(image, kernel, kernel_size, result_image);
+    cudaError_t cudaStatus = filterImage(image, result_image);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "%s\n", cudaGetErrorString(cudaStatus));
         fprintf(stderr, "Filter image failed!");
@@ -207,28 +207,28 @@ cudaError_t filterImage(cv::Mat image, cv::Mat result_image)
     {
         // Choose which GPU to run on, change this on a multi-GPU system.
         cudaStatus = cudaSetDevice(0);
-         if (cudaStatus != cudaSuccess) throw "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?";
+        if (cudaStatus != cudaSuccess) throw "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?";
 
         // Allocate GPU buffers.
         cudaStatus = cudaMalloc((void**)&d_image, image.rows * image.cols * image.channels() * sizeof(uchar));
-         if (cudaStatus != cudaSuccess) throw "cudaMalloc failed! image";
+        if (cudaStatus != cudaSuccess) throw "cudaMalloc failed! image";
 
         cudaStatus = cudaMalloc((void**)&d_kernel, kernel_size * kernel_size * sizeof(int));
-         if (cudaStatus != cudaSuccess) throw "cudaMalloc failed! kernel";
+        if (cudaStatus != cudaSuccess) throw "cudaMalloc failed! kernel";
 
         cudaStatus = cudaMalloc((void**)&d_result_image, image.rows * image.cols * image.channels() * sizeof(uchar));
-         if (cudaStatus != cudaSuccess) throw "cudaMalloc failed! result image";
+        if (cudaStatus != cudaSuccess) throw "cudaMalloc failed! result image";
 
 
         // Copy input vectors from host memory to GPU buffers.
         cudaStatus = cudaMemcpy(d_image, image.data, image.rows * image.cols * image.channels() * sizeof(uchar), cudaMemcpyHostToDevice);
-         if (cudaStatus != cudaSuccess) throw "cudaMemcpy failed! image to device";
+        if (cudaStatus != cudaSuccess) throw "cudaMemcpy failed! image to device";
 
         cudaStatus = cudaMemcpy(d_kernel, kernel, kernel_size * kernel_size * sizeof(int), cudaMemcpyHostToDevice);
-         if (cudaStatus != cudaSuccess) throw "cudaMemcpy failed! kernel to device";
+        if (cudaStatus != cudaSuccess) throw "cudaMemcpy failed! kernel to device";
 
         cudaStatus = cudaMemcpy(d_image, image.data, image.rows * image.cols * image.channels() * sizeof(uchar), cudaMemcpyHostToDevice);
-         if (cudaStatus != cudaSuccess) throw "cudaMemcpy failed! result image to device";
+        if (cudaStatus != cudaSuccess) throw "cudaMemcpy failed! result image to device";
 
 
         int rows_per_block = std::ceil((float)image_height / (float)n_blocks);
@@ -280,99 +280,72 @@ cudaError_t filterImage(cv::Mat image, cv::Mat result_image)
 void get_kernel_info(int filter)
 {
     // Get kernel sum to use it later
+    std::vector<int> temp_kernel;
+ 
     bool brillo = false;
     switch (filter)
     {
     case 1:
         //DETECCION DE BORDES
-        kernel = {
+        temp_kernel = {
             0, 1, 0,
             1, -4, 1,
-            0, 1, 0};
-        kernel_size = 3;
+            0, 1, 0 };
         break; //optional
     case 2:
         // REPUJADO
-        kernel = {
+        temp_kernel = {
             -2, -1, 0,
             -1, 1, 1,
-            0, 1, 2};
-        kernel_size = 3;
+            0, 1, 2 };
 
         break; //optional
     case 3:
         // DESENFOCADO 3x3
-        kernel = {
+        temp_kernel = {
             1, 1, 1,
             1, 1, 1,
-            1, 1, 1};
-        kernel_size = 3;
+            1, 1, 1 };
 
         break; //optional
     case 4:
         // ENFOCADO
-        kernel = {
+        temp_kernel = {
             0, -1, 0,
             -1, 5, -1,
-            0, -1, 0};
+            0, -1, 0 };
         kernel_size = 3;
         break; //optional
     case 5:
         // brillo bajo
-        kernel = {
+        temp_kernel = {
             0, 0, 0,
             0, 1, 0,
-            0, 0, 0};
+            0, 0, 0 };
         brillo = true;
         kernel_total = 1.5;
-        kernel_size = 3;
         break;
     case 6:
         // brillo alto
-        kernel = {
+        temp_kernel = {
             0, 0, 0,
             0, 1, 0,
-            0, 0, 0};
+            0, 0, 0 };
         brillo = true;
         kernel_total = 0.5;
-        kernel_size = 3;
-        break; //optional
-    case 7:
-        // DESENFOCADO 15x15
-        kernel = {
-            1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-        kernel_size = 15;
-
         break;
     default:   //Identidad
-        kernel = {
+        temp_kernel = {
             0, 0, 0,
             0, 1, 0,
-            0, 0, 0};
-        kernel_size = 3;
+            0, 0, 0 };
     }
     if (!brillo)
     {
-        for (int i = 0; i < kernel.size(); i++)
+        for (int i = 0; i < 9; i++)
         {
-            for (int j = 0; j < kernel.size(); j++)
-            {
-                kernel_total += kernel[i][j];
-            }
+            kernel_total += temp_kernel[i];
+            kernel[i] = temp_kernel[i];
         }
 
         if (kernel_total == 0)
