@@ -9,7 +9,7 @@ do
         echo hilo $thread;
         for iteracion in {0..9};
         do
-            do  ./mosaic_cuda test.jpg test_output.jpg $block $thread 10 44;
+            ./mosaic_cuda test.jpg test_output.jpg $block $thread 10 44;
         done;
     done;
 done;
