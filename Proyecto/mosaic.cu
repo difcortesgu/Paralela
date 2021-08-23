@@ -153,8 +153,8 @@ int main(int argc, char** argv)
     //Get the arguments
     std::string path_image = argv[1];
     std::string path_save = argv[2];
-    std::string path_index_image = "C:\\imagenes\\indexImage.jpg";
-    std::string path_mosaic_image = "C:\\imagenes\\mosaicImage.jpg";
+    std::string path_index_image = "indexImage.jpg";
+    std::string path_mosaic_image = "mosaicImage.jpg";
 
     n_blocks = atoi(argv[3]);
     if (n_blocks == 0)
