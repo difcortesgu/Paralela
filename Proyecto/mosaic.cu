@@ -205,6 +205,8 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    new_tile_size = min(new_tile_size, mosaic_image.cols);
+
     int h_pad = image.cols % tile_size;
     int v_pad = image.rows % tile_size;
 
