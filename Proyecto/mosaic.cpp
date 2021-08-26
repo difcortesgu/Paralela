@@ -271,9 +271,7 @@ int main(int argc, char **argv)
 
     // Show results
     printf("Time elapsed: %ld.%06ld\n", (long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
-    imshow("Original", image);
-    imshow("Modificado", newImage);
-
+    
     // Write the new image
     // imwrite(path_save, newImage);
     if (!imwrite(path_save, newImage))
