@@ -1,0 +1,55 @@
+hilo 1
+Time elapsed: 7.496189
+Time elapsed: 7.400565
+Time elapsed: 7.392100
+Time elapsed: 7.482025
+Time elapsed: 7.429163
+Time elapsed: 7.446931
+Time elapsed: 7.389646
+Time elapsed: 7.578337
+Time elapsed: 7.606046
+Time elapsed: 7.431860
+hilo 2
+Time elapsed: 3.986564
+Time elapsed: 4.016468
+Time elapsed: 4.086272
+Time elapsed: 4.023856
+Time elapsed: 4.014650
+Time elapsed: 4.069315
+Time elapsed: 4.001664
+Time elapsed: 4.075604
+Time elapsed: 4.015829
+Time elapsed: 4.029415
+hilo 4
+Time elapsed: 2.277300
+Time elapsed: 2.239645
+Time elapsed: 2.336692
+Time elapsed: 2.281878
+Time elapsed: 2.268569
+Time elapsed: 2.278244
+Time elapsed: 2.251302
+Time elapsed: 2.293781
+Time elapsed: 2.261801
+Time elapsed: 2.254317
+hilo 8
+Time elapsed: 1.787294
+Time elapsed: 1.780759
+Time elapsed: 1.795321
+Time elapsed: 1.811141
+Time elapsed: 1.805823
+Time elapsed: 9.428713
+Time elapsed: 1.778166
+Time elapsed: 1.771291
+Time elapsed: 1.785518
+Time elapsed: 1.749457
+hilo 16
+Time elapsed: 1.778496
+Time elapsed: 1.713918
+Time elapsed: 1.769036
+Time elapsed: 1.771093
+Time elapsed: 1.778378
+Time elapsed: 1.727605
+Time elapsed: 1.776391
+Time elapsed: 1.802688
+Time elapsed: 1.739110
+Time elapsed: 11.471498
