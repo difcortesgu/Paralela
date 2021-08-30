@@ -1,93 +1,98 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
-#include <string>
-#include <stdio.h>
+#include <iostream>
 #include <sys/time.h>
+#include <math.h>
 #include "mpi.h"
 
+using namespace std;
+using namespace cv;
 
-void mosaicImagekernel(const uchar* image, int image_width, int image_channels, const uchar* index_image, int index_image_size, const uchar* mosaic_image, int mosaic_image_width, uchar* result_image, int result_image_width, int tile_size, int new_tile_size, int tiles_per_row, int total_tiles)
+struct KernelInfo
 {
-    int newPixelB, newPixelG, newPixelR;
+    vector<vector<int>> kernel;
+    int inicio, final, offset;
+    double kernel_total = 0;
+};
 
-    // Loop tiles
-    for (int ti = 0; ti < total_tiles; ti++)
+Mat processImage(Mat image, Mat index_image, Mat mosaic_image, int tile_size, int new_tile_size, int n_tile_rows, int n_tile_cols, int rank, int size)
+{
+    Mat newImage = Mat(n_tile_rows * new_tile_size, n_tile_cols * new_tile_size, CV_8UC3, Scalar(0, 0, 0));
+
+    // Loop image rows
+    for (int i = 0; i < n_tile_rows; i++)
     {
-        // Start of the tile
-        int row = (ti / tiles_per_row);
-        int col = (ti % tiles_per_row);
-
-        int pos = ( row * image_width * tile_size * image_channels) + (col * tile_size * image_channels);
-
-        newPixelB = 0;
-        newPixelG = 0;
-        newPixelR = 0;
-
-        // Loop rows of pixels of the tile
-        for (int pi = 0; pi < tile_size; pi++)
+        // Loop image cols
+        for (int j = 0; j < n_tile_cols; j++)
         {
-            // Loop cols of pixels of the tile
-            for (int pj = 0; pj < tile_size; pj++)
+            int newPixel[] = {0, 0, 0};
+
+            // Loop block of pixels to mix
+            for (int bi = 0; bi < tile_size; bi++)
             {
-                // Get pixel
-                int pix_pos = pos + (pi * image_width * image_channels) + (pj * image_channels);
+                for (int bj = 0; bj < tile_size; bj++)
+                {
+                    // Get image pixel RGB
+                    Vec3b pixel = image.at<Vec3b>((i * tile_size) + bi, (j * tile_size) + bj);
+                    int B = (int)pixel[0];
+                    int G = (int)pixel[1];
+                    int R = (int)pixel[2];
 
-                // Add the values to the new pixel
-                newPixelB += (int)image[pix_pos];
-                newPixelG += (int)image[pix_pos + 1];
-                newPixelR += (int)image[pix_pos + 2];
+                    // Update new pixel sum
+                    newPixel[0] += B;
+                    newPixel[1] += G;
+                    newPixel[2] += R;
+                }
             }
-        }
 
-        newPixelB /= (tile_size * tile_size);
-        newPixelG /= (tile_size * tile_size);
-        newPixelR /= (tile_size * tile_size);
-
-        // Get the closest color
-        float minDiff = 10000;
-        int closest_pos = 0;
-
-        for (int i = 0; i < index_image_size; i++)
-        {
-            float diff = sqrt(pow(newPixelB - index_image[i * image_channels], 2) + pow(newPixelB - index_image[i * image_channels + 1], 2) +pow(newPixelB - index_image[i * image_channels + 2], 2));
-            if (diff < minDiff)
+            //  Normalize pixel and bound it
+            for (int k = 0; k < 3; k++)
             {
-                minDiff = diff;
-                closest_pos = i;
+                newPixel[k] /= pow(tile_size, 2);
             }
-        }
 
-        pos = (row * result_image_width * new_tile_size * image_channels) + (col * new_tile_size * image_channels);
 
-        // Update new image pixels with the "pixel" image
-        for (int ni = 0; ni < new_tile_size; ni++)
-        {
-            for (int nj = 0; nj < new_tile_size; nj++)
+            // Get the closest color
+            double minDiff = 10000;
+            int closest_pos = 0;
+
+            for (int i = 0; i < index_image.rows; i++)
             {
-                int pix_pos = pos + (ni * result_image_width * image_channels) + (nj * image_channels);
+                Vec3b pixel = index_image.at<Vec3b>(i, 0);
 
-                //result_image[pix_pos] = newPixelB;
-                //result_image[pix_pos + 1] = newPixelG;
-                //result_image[pix_pos + 2] = newPixelR;
-
-                //result_image[pix_pos] = index[closest_pos * image_channels];
-                //result_image[pix_pos + 1] = index[closest_pos * image_channels + 1];
-                //result_image[pix_pos + 2] = index[closest_pos * image_channels + 2];
-
-                result_image[pix_pos] = mosaic_image[(closest_pos * mosaic_image_width * mosaic_image_width * image_channels) + (ni * mosaic_image_width * image_channels) + (nj * image_channels)];
-                result_image[pix_pos + 1] = mosaic_image[(closest_pos * mosaic_image_width * mosaic_image_width * image_channels) + (ni * mosaic_image_width * image_channels) + (nj * image_channels) + 1];
-                result_image[pix_pos + 2] = mosaic_image[(closest_pos * mosaic_image_width * mosaic_image_width * image_channels) + (ni * mosaic_image_width * image_channels) + (nj * image_channels) + 2];
+                double diff = sqrt(pow(newPixel[0] -  pixel[0], 2) + pow(newPixel[1] - pixel[1], 2) + pow(newPixel[2] - pixel[2], 2));
+                if (diff < minDiff)
+                {
+                    minDiff = diff;
+                    closest_pos = i;
+                }
             }
+            
+            int init_i = closest_pos * mosaic_image.cols;
+
+            // Update new image pixels with the "pixel" image
+            for (int ni = 0; ni < new_tile_size; ni++)
+            {
+                for (int nj = 0; nj < new_tile_size; nj++)
+                {
+                    // Vec3b newImagePixel = newImage.at<Vec3b>((i * new_tile_size) + ni, (j * new_tile_size) + nj);
+                    Vec3b mosaicImagePixel = mosaic_image.at<Vec3b>(init_i + ni, nj);
+                    
+                    newImage.at<Vec3b>((i * new_tile_size) + ni, (j * new_tile_size) + nj)[0] = mosaicImagePixel[0];
+                    newImage.at<Vec3b>((i * new_tile_size) + ni, (j * new_tile_size) + nj)[1] = mosaicImagePixel[1];
+                    newImage.at<Vec3b>((i * new_tile_size) + ni, (j * new_tile_size) + nj)[2] = mosaicImagePixel[2];
+                }
+            }
+
         }
-        
     }
+    return newImage;
 }
 
-int main(int argc, char** argv)
-{
+int main(int argc, char **argv){
     //Check number of arguments
-    if (argc < 3)
+    if (argc < 2)
     {
         std::cout << "Ingrese todos los argumentos necesarios para ejecutar el proceso" << std::endl;
         return -1;
@@ -96,48 +101,46 @@ int main(int argc, char** argv)
     int tile_size = 10, new_tile_size = 10;
 
     //Get the arguments
-    std::string path_image = argv[1];
-    std::string path_save = argv[2];
-    std::string path_index_image = "indexImage.jpg";
-    std::string path_mosaic_image = "mosaicImage.jpg";
+    string path_image = argv[1];
+    string path_index_image = "indexImage.jpg";
+    string path_mosaic_image = "mosaicImage.jpg";
 
-
-    tile_size = atoi(argv[3]);
+    tile_size = atoi(argv[2]);
     if (tile_size == 0)
     {
-        std::cout << "El argumento de tamaño es invalido" << std::endl;
+        cout << "El argumento de tamaño es invalido" << endl;
         return -1;
     }
 
-    new_tile_size = atoi(argv[4]);
+    new_tile_size = atoi(argv[3]);
     if (new_tile_size == 0)
     {
-        std::cout << "El argumento de tamaño nuevo es invalido" << std::endl;
+        cout << "El argumento de tamaño nuevo es invalido" << endl;
         return -1;
     }
-
-    cv::Mat image = cv::imread(path_image, cv::IMREAD_COLOR); // Read the file
+    
+    Mat image = imread(path_image, cv::IMREAD_COLOR); // Read the file
     if (!image.data)
     {
-        std::cout << "Could not open or find the image" << std::endl;
+        cout << "Could not open or find the image" << endl;
         return -1;
     }
 
-    cv::Mat index_image = cv::imread(path_index_image, cv::IMREAD_COLOR); // Read the file
+    Mat index_image = imread(path_index_image, cv::IMREAD_COLOR); // Read the file
     if (!index_image.data)
     {
-        std::cout << "Could not open or find the index image" << std::endl;
+        cout << "Could not open or find the index image" << endl;
         return -1;
     }
 
-    cv::Mat mosaic_image = cv::imread(path_mosaic_image, cv::IMREAD_COLOR); // Read the file
+    Mat mosaic_image = imread(path_mosaic_image, cv::IMREAD_COLOR); // Read the file
     if (!mosaic_image.data)
     {
-        std::cout << "Could not open or find the mosaic image" << std::endl;
+        cout << "Could not open or find the mosaic image" << endl;
         return -1;
     }
 
-    new_tile_size = std::min(new_tile_size, mosaic_image.cols);
+    new_tile_size = min(new_tile_size, mosaic_image.cols);
 
     int h_pad = image.cols % tile_size;
     int v_pad = image.rows % tile_size;
@@ -153,65 +156,114 @@ int main(int argc, char** argv)
     }
 
     //Add padding to the image so that each tile is the same size
-    cv::copyMakeBorder(image, image, 0, v_pad, 0, h_pad, cv::BORDER_REFLECT);
+    copyMakeBorder(image, image, 0, v_pad, 0, h_pad, BORDER_REFLECT);
 
     int n_vertical_tiles = image.rows / tile_size;
     int n_horizontal_tiles = image.cols / tile_size;
-    int total_tiles = n_horizontal_tiles * n_vertical_tiles;
-
-    cv::Mat result_image = cv::Mat(n_vertical_tiles * new_tile_size, n_horizontal_tiles * new_tile_size, CV_8UC3, cv::Scalar(0, 0, 0));
+    // Mat result_image = Mat(n_vertical_tiles * new_tile_size, n_horizontal_tiles * new_tile_size, CV_8UC3, Scalar(0, 0, 0));
     
-    //Call the processing method
+    int image_len = image.cols * image.rows * image.channels();
+    int index_image_len = index_image.cols * index_image.rows * index_image.channels();
+    int mosaic_image_len = mosaic_image.cols * mosaic_image.rows * mosaic_image.channels();
+
+
     int rank, size;
+    
     MPI_Init(&argc, &argv);
         MPI_Comm_size( MPI_COMM_WORLD, &size );
         MPI_Comm_rank( MPI_COMM_WORLD, &rank );
 
-        int div = n_vertical_tiles / size;
-        int mod = n_vertical_tiles % size;
+        int tile_rows_per_process = n_vertical_tiles / size;
+        int left_tile_rows = n_vertical_tiles % size;
 
-        int *b = (int *)malloc((div + mod) * (tile_size * image.cols * image.channels()) * sizeof(int));
-        int *c = (int *)malloc(size * sizeof(int));
-        int *d = (int *)malloc(size * sizeof(int));
+        int div = tile_rows_per_process * tile_size * image.cols * image.channels();
+        int mod = left_tile_rows * tile_size * image.cols * image.channels();
 
-        c[0] = (div + mod) * (tile_size * image.cols * image.channels());
-        d[0] = 0;
+        int *counts = (int *)malloc(size * sizeof(int));
+        int *displacements = (int *)malloc(size * sizeof(int));
+
+        counts[0] = div + mod;
+        displacements[0] = 0;
 
         for (int i = 1; i < size; i++)
         {
-            c[i] = div * (tile_size * image.cols * image.channels());
-            d[i] = c[i-1] + d[i-1];
+            counts[i] = div;
+            displacements[i] = counts[i-1] + displacements[i-1];
         }
 
-        if (rank == 0)
-        {
-            std::cout << image.cols * image.rows * image.channels() << std::endl;
+        // Get initial time
+        struct timeval tval_before, tval_after, tval_result;
+        gettimeofday(&tval_before, NULL);
 
+        ///bcast index_image mosaic.img 
+        MPI_Bcast((void *)index_image.data, index_image_len, MPI_CHAR, 0, MPI_COMM_WORLD);
+        MPI_Bcast((void *)mosaic_image.data, mosaic_image_len, MPI_CHAR, 0, MPI_COMM_WORLD);
 
-            for (int i = 0; i < size; i++)
+        Mat tempImage, tempResultImage;
+        Mat result_image = Mat(n_vertical_tiles * new_tile_size, n_horizontal_tiles * new_tile_size, CV_8UC3, Scalar(0, 0, 0));
+        string path_save;
+
+        if (rank == 0){
+            tempImage = Mat((tile_rows_per_process + left_tile_rows) * tile_size, image.cols, CV_8UC3, Scalar(0, 0, 0));
+            
+            MPI_Scatterv((void *)image.data, counts, displacements, MPI_CHAR, (void *)tempImage.data, div + mod, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+            tempResultImage = processImage(tempImage, index_image, mosaic_image, tile_size, new_tile_size,tile_rows_per_process + left_tile_rows, n_horizontal_tiles, rank, size);        
+
+            div = tile_rows_per_process * new_tile_size * result_image.cols * result_image.channels();
+            mod = left_tile_rows * new_tile_size * result_image.cols * result_image.channels();
+
+            counts[0] = div + mod;
+            displacements[0] = 0;
+
+            for (int i = 1; i < size; i++)
             {
-                std::cout << d[i] << " --- " << d[i] + c[i] << std::endl;
+                counts[i] = div;
+                displacements[i] = counts[i-1] + displacements[i-1];
+            }
 
-                c[i] = div * (tile_size * image.cols * image.channels());
-                d[i] = c[i-1] + d[i-1];
+            MPI_Gatherv((void *)tempResultImage.data, div + mod, MPI_CHAR, (void *)result_image.data, counts, displacements, MPI_CHAR, 0, MPI_COMM_WORLD);
+        
+        }else{
+            tempImage = Mat(tile_rows_per_process * tile_size, image.cols, CV_8UC3, Scalar(0, 0, 0));
+            
+            MPI_Scatterv((void *)image.data, counts, displacements, MPI_CHAR, (void *)tempImage.data, div, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+            tempResultImage = processImage(tempImage, index_image, mosaic_image, tile_size, new_tile_size, tile_rows_per_process, n_horizontal_tiles, rank, size);        
+
+            div = tile_rows_per_process * new_tile_size * result_image.cols * result_image.channels();
+            mod = left_tile_rows * new_tile_size * result_image.cols * result_image.channels();
+
+            counts[0] = div + mod;
+            displacements[0] = 0;
+
+            for (int i = 1; i < size; i++)
+            {
+                counts[i] = div;
+                displacements[i] = counts[i-1] + displacements[i-1];
+            }
+
+            MPI_Gatherv((void *)tempResultImage.data, div, MPI_CHAR, (void *)result_image.data, counts, displacements, MPI_CHAR, 0, MPI_COMM_WORLD);
+        }
+
+
+        if (rank == 0){
+            // Calculate time
+            gettimeofday(&tval_after, NULL);
+            timersub(&tval_after, &tval_before, &tval_result);
+
+            // Show results
+            printf("%ld.%06ld\n", (long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
+
+            string path_save = "out_" + path_image;
+
+            if (!imwrite(path_save, result_image)){
+                cout << "Could not save the image" << endl;
+                return -1;
             }
         }
-
-        MPI_Scatterv((void *)image.data, c, d, MPI_INT, (void *)b, c[0], MPI_INT, 0, MPI_COMM_WORLD);
-
-        // // MPI_Scatter((void *) a, 2, MPI_INT, (void * )b, 2, MPI_INT, 0, MPI_COMM_WORLD);
-        // for (int i = 0; i < 3; i++)
-        // {
-        //     cout << "Process: "<< rank << " --- " << b[i] << endl;
-        // }
-
+        
     MPI_Finalize();
-
-
-    if (!cv::imwrite(path_save, result_image)) {
-        std::cout << "Could not save the image" << std::endl;
-        return -1;
-    }
 
     return 0;
 }
